@@ -3,8 +3,8 @@
 These encode the regression coverage for the two historical crashes:
 * recursive per-hop trajectory simulation -> RecursionError on real
   destinations (now iterative with a MAX_HOPS cap), and
-* unbounded exponential speed search -> float64 OverflowError (now a
-  bounded scan).
+* unbounded exponential speed search -> float64 OverflowError (now an
+  exponential bound + binary search per the paper's Sec. 10.1).
 """
 
 import math
@@ -141,3 +141,28 @@ def test_plots_save_files_headless(medium_topology, tmp_path):
                              heat_map(topology, 10, 4, {n.id: [] for n in all_nodes}),
                              out_dir=str(tmp_path))
     assert out4 and tmp_path.joinpath(out4.split("/")[-1]).exists()
+
+
+def test_trajectory_search_returns_distinct_trajectories(medium_topology) -> None:
+    """Each entry in trajectory_search's dict is a *distinct* route (de-dup)."""
+    topology, all_nodes = medium_topology
+    result = trajectory_search(topology, all_nodes[0].id, DNE_NODE,
+                               1.1631419984385158, 5.0, GRAVITY)
+    assert result, "expected at least one distinct trajectory"
+    normalized = []
+    for traj in result.values():
+        ids = [n for n in traj if isinstance(n, str)]
+        assert ids, "trajectory must contain node ids"
+        assert ids not in normalized, "duplicate trajectory recorded"
+        normalized.append(ids)
+
+
+def test_trajectory_search_is_fast(medium_topology) -> None:
+    """Binary search must beat a brute-force speed scan (<1 s here)."""
+    import time
+
+    topology, all_nodes = medium_topology
+    t0 = time.time()
+    trajectory_search(topology, all_nodes[0].id, DNE_NODE,
+                      1.1631419984385158, 5.0, GRAVITY)
+    assert time.time() - t0 < 1.0, "trajectory search unexpectedly slow"

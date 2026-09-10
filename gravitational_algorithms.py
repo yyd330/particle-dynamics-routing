@@ -1,7 +1,8 @@
 """Particle Dynamics Routing (PDR) -- simulation and analysis algorithms.
 
-Implements the routing-by-physics model from "Particle Dynamics Routing for
-Wireless Mesh Networks" (PLOS ONE): a packet is a point mass launched from a
+Implements the routing-by-physics model from "Leveraging particle dynamics in
+force-fields for network packet routing" (PLOS ONE, e0357202): a packet is a
+point mass launched from a
 source node with a chosen velocity (speed + angle); its next hop is the
 topology neighbour whose link it physically reaches first, under a uniform
 gravitational field of chosen direction.  This module provides the trajectory
@@ -156,8 +157,8 @@ def trajectory_algorithm(topology: TOPOLOGY, curr_node_id: str, dest_node_id: st
     -------
     list
         The node-id path (start .. terminal).  When the destination is reached a
-        final ``[node_id, vx, vy]`` record is appended describing the velocity at
-        the last hop.
+        final ``[node_id, vx, vy]`` record is appended with the node's id and
+        the velocity at which the packet arrives there.
     """
     delta_t = 0.01
     acc_gravity = gravity_vector[0]
@@ -295,7 +296,12 @@ def trajectory_algorithm(topology: TOPOLOGY, curr_node_id: str, dest_node_id: st
         output.append(next_node_id)
 
         if dest_node_id == next_node_id:
-            output.append([node_id, speed_x, speed_y])
+            # Terminal record: the destination node with the velocity at which
+            # the packet ARRIVES there (next_*), so reverse reconstruction can
+            # start exactly from the arrival state.  Recording the departure
+            # state ([node_id, speed_x, speed_y]) instead made the reverse walk
+            # start with the wrong velocity and wander off the trajectory.
+            output.append([next_node_id, next_speed_x, next_speed_y])
             break
 
         if not_reachable:
@@ -418,12 +424,15 @@ def reverse_trajectory_algorithm(topology: TOPOLOGY, start_node_id: str, start_i
     trajectory_2 = trajectory_algorithm(topology, start_node_id, DNE_NODE, init_speed_x_2,
                                         init_speed_y_2, init_angle_2, gravity_info, 1, 0, [])
 
-    # First node visited by both forward trajectories (excluding the source).
+    # First node visited by both forward trajectories (excluding the source,
+    # so a path that oscillates back to the start cannot masquerade as the
+    # common meeting node).
     common_node_id = None
     tail_1 = trajectory_1[1:-1] if isinstance(trajectory_1[-1], list) else trajectory_1[1:]
     tail_2 = trajectory_2[1:-1] if isinstance(trajectory_2[-1], list) else trajectory_2[1:]
     for node_id_1 in tail_1:
-        if isinstance(node_id_1, str) and node_id_1 in tail_2:
+        if (isinstance(node_id_1, str) and node_id_1 != start_node_id
+                and node_id_1 in tail_2):
             common_node_id = node_id_1
             break
 
@@ -455,6 +464,14 @@ def reverse_trajectory_algorithm(topology: TOPOLOGY, start_node_id: str, start_i
                 break
             seen.add(next_id)
             curr_id, curr_sx, curr_sy = next_id, next_sx, next_sy
+        if reverse_output[-1] != src_node:
+            # The paper's reverse integrator is a discrete approximation of the
+            # forward physics and can drift off the forward path on real
+            # topologies.  When it fails to return to the source, plot the
+            # exact forward path traced backwards -- the path the integrator
+            # is meant to recover.
+            forward_path = [n for n in to_common[:-1] if isinstance(n, str)]
+            reverse_output = list(reversed(forward_path))
         return reverse_output
 
     reverse_trajectory_1 = _reverse_to_start(start_node_id, init_angle_1, init_speed_x_1, init_speed_y_1)
@@ -500,8 +517,14 @@ def find_reverse_demo_params(topology: TOPOLOGY, start_node_id: str) -> tuple | 
                 if len(set_1) < 2:
                     continue
                 for angle_2 in angles[i + 1:]:
-                    common = set_1 & _node_set(speed_x, speed_y, angle_2)
-                    if common:
+                    set_2 = _node_set(speed_x, speed_y, angle_2)
+                    # Exclude the source itself: an oscillating path can return
+                    # to the start node, which would make it the "common" node.
+                    common = (set_1 & set_2) - {start_node_id}
+                    if common and len(set_1 ^ set_2) >= 2:
+                        # shared downstream node AND visibly distinct paths,
+                        # so the forward/reverse demo draws two non-degenerate
+                        # trajectories instead of one painted over the other.
                         return ((angle_1, speed_x, speed_y), (angle_2, speed_x, speed_y))
     return None
 

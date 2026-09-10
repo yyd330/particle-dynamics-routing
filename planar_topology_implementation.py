@@ -1,7 +1,9 @@
 """Planar topology implementation for Particle Dynamics Routing (PDR).
 
 This module reconstructs the planar-mesh topology used by the PDR experiments
-in:  S. Saha et al., "Particle Dynamics Routing", PLOS ONE (journal.pone.0357202).
+in:  S. Biswas, Y. Yang, A. K. Bhuyan, H. Dutta, S. Datta, "Leveraging particle
+dynamics in force-fields for network packet routing", PLOS ONE 21(8): e0357202
+(2026).
 
 It provides the planar topology generation pipeline and the helper predicates
 that the routing algorithms in ``gravitational_algorithms.py`` depend on.

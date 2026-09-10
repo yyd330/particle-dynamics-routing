@@ -42,7 +42,7 @@ particle's instantaneous trajectory. The approach is described in:
 | `planar_topology_implementation.py` | Planar-mesh topology generation + helper predicates. |
 | `gravitational_algorithms.py` | PDR trajectory physics, reachability/heat maps, Dijkstra. Runnable CLI (`main()`). |
 | `general_test.py` | Smoke test: builds the paper's 200-node topology, exercises every routing primitive. |
-| `tests/` | pytest suite (31 tests: data structures, topology invariants, routing, plotting). |
+| `tests/` | pytest suite (33 tests: data structures, topology invariants, routing, plotting). |
 
 ## Setup
 
