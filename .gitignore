@@ -16,8 +16,5 @@ venv/
 *.csv
 *.log
 
-# Generated result PDFs (rebuild with scripts/build_pdf.py)
-reports/
-
 # CI workflow lives locally until the GitHub token gains the workflow scope
 .github/workflows/
