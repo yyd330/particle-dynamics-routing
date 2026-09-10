@@ -20,9 +20,11 @@ particle's instantaneous trajectory. The approach is described in:
   motion under uniform gravity hop by hop (iterative, cycle-guarded, capped at
   `MAX_HOPS`) and routes it to the neighbor whose link angle best matches its
   direction of travel.
-- **Trajectory search** — `trajectory_search` finds the launch speeds that
-  make a given node-to-node route reachable under a given gravity vector
-  (bounded scan — safe, no float64 overflow).
+- **Trajectory search** — `trajectory_search` enumerates the launch speeds
+  that make a given outgoing link produce distinct routes: an exponential
+  phase establishes the speed interval (paper Sec. 10.1), then a binary
+  search inside it records every trajectory change (bounded, no float64
+  overflow).
 - **Reachability & heat maps** — `search_reachability` sweeps launch
   parameters from a node to determine which nodes are physically reachable;
   `heat_map` aggregates those results per grid region and renders a
@@ -40,7 +42,7 @@ particle's instantaneous trajectory. The approach is described in:
 | `planar_topology_implementation.py` | Planar-mesh topology generation + helper predicates. |
 | `gravitational_algorithms.py` | PDR trajectory physics, reachability/heat maps, Dijkstra. Runnable CLI (`main()`). |
 | `general_test.py` | Smoke test: builds the paper's 200-node topology, exercises every routing primitive. |
-| `tests/` | pytest suite (30 tests: data structures, topology invariants, routing, plotting). |
+| `tests/` | pytest suite (31 tests: data structures, topology invariants, routing, plotting). |
 
 ## Setup
 
@@ -60,18 +62,29 @@ python3 general_test.py
 python3 general_test.py --full        # larger reachability sweep
 
 # Full pipeline (topology + reachability sweep + heat map + trajectory
-# demos + reverse-trajectory demo). Plots are saved to ./output/ by default.
-python3 gravitational_algorithms.py
+# demos + reverse-trajectory demo). Use --out DIR to save plots (PNGs).
+python3 gravitational_algorithms.py --out ./output
 
-# Fast demo scale (~60 s on 200 nodes) vs. full paper scale (~3 CPU-hours):
+# Fast demo scale (~60 s on 200 nodes, 12 workers) vs. full paper scale:
 python3 gravitational_algorithms.py --scale fast --out ./output
 python3 gravitational_algorithms.py --scale full --out ./output
+python3 gravitational_algorithms.py --scale full --nodes 200 --workers 12
 
 # Single experiment only:
 python3 gravitational_algorithms.py --experiment reachability
 python3 gravitational_algorithms.py --experiment heatmap
 python3 gravitational_algorithms.py --experiment trajectories
 python3 gravitational_algorithms.py --experiment reverse
+python3 gravitational_algorithms.py --experiment dijkstra
+
+# Degree / mPDR reachability experiment (paper Fig. 9 style):
+# sweeps 4 network densities x 4 gravity directions and renders a grouped
+# bar plot of average reachability.
+python3 gravitational_algorithms.py --nodes 200 --scale fast --experiment degree
+python3 gravitational_algorithms.py --nodes 200 --scale full --experiment degree
+
+# Parallel reachability sweep (long runs):
+python3 gravitational_algorithms.py --nodes 200 --scale full --workers 12
 
 # Topology knobs:
 python3 gravitational_algorithms.py --nodes 500 --grid-size 20 --seed 7
@@ -95,3 +108,14 @@ Per the paper's convention, a node's `neighbors` list contains its own id at
 index 0 (so `NODE.degree() == len(neighbors) - 1`), and the trajectory output
 ends with a terminal `[node_id, vx, vy]` record. Sweep code therefore
 collects node ids only from string entries.
+
+## Parameter choices vs. the paper
+
+- Gravity magnitude: the paper's experiments run under a uniform field of
+  magnitude `g` (Earth-like, ~10 m/s²); the code uses `GRAVITY_ACCEL = 10.0`.
+- Simulation step `Δt = 0.01 s`, 8 gravity directions at 45° spacing, and the
+  boundary-stopping criterion (a hop near the down-field edge that would turn
+  back more than 85° from the field is infeasible) follow the paper's
+  Algorithms I/II and Sec. 10.2.
+- Full-scale sweeps use 200 nodes on a 10×10 plane with a 4×4 regional heat
+  map (2.5×2.5 unit regions), matching the paper's experimental setup.

@@ -94,3 +94,16 @@ def test_topology_deterministic_for_same_seed():
     positions_b = sorted((n.x, n.y) for n in nodes_b)
     assert positions_a == positions_b
     assert topo_a == topo_b
+
+
+def test_place_nodes_exact_count():
+    """_place_nodes must return exactly num_nodes positions (any count)."""
+    from planar_topology_implementation import _place_nodes
+
+    for n in (10, 30, 50, 100, 123, 200):
+        positions = _place_nodes(n, 10.0, 10)
+        assert len(positions) == n
+        assert len(set(positions)) == n
+        for x, y in positions:
+            assert 0.0 < x < 10.0
+            assert 0.0 < y < 10.0

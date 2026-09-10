@@ -115,13 +115,26 @@ def _place_nodes(num_nodes: int, grid_size: float, grid_division: int) -> list:
     distribution like the planar mesh used in the paper.
     """
     n_cells = grid_division * grid_division
-    per_cell = max(1, num_nodes // n_cells)
+    # Even distribution: floor(nodes/cells) per cell, the remainder of the
+    # nodes fill one extra position in the first cells.  (No per-cell floor:
+    # with fewer nodes than cells each node gets its own cell.)
+    per_cell = num_nodes // n_cells
     remainder = num_nodes - per_cell * n_cells
+    if per_cell == 0:
+        # Spread the nodes across the cells instead of clustering them in the
+        # first `remainder` cells.
+        step = n_cells // num_nodes
+        chosen = [cell * step for cell in range(num_nodes)]
+    else:
+        chosen = None
 
     positions = []
     cell_size = grid_size / grid_division
     for cell in range(n_cells):
-        count = per_cell + (1 if cell < remainder else 0)
+        if chosen is not None:
+            count = chosen.count(cell)
+        else:
+            count = per_cell + (1 if cell < remainder else 0)
         for _ in range(count):
             cx = (cell % grid_division) * cell_size
             cy = (cell // grid_division) * cell_size
