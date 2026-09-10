@@ -19,5 +19,3 @@ venv/
 # CI workflow lives locally until the GitHub token gains the workflow scope
 .github/workflows/
 
-# Generated result PDFs (local only)
-reports/
