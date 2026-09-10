@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Output artifacts
+*.png
+*.jpg
+*.csv
+*.log
+
+# CI workflow lives locally until the GitHub token gains the workflow scope
+.github/workflows/
